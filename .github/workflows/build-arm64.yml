@@ -1,0 +1,72 @@
+name: Build R36S360 Frontend V0.1 ARM64
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04-arm
+
+    steps:
+      - name: Baixar arquivos do repositório
+        uses: actions/checkout@v4
+
+      - name: Instalar dependências
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            git cmake make g++ pkg-config \
+            libboost-system-dev \
+            libboost-filesystem-dev \
+            libboost-locale-dev \
+            libboost-date-time-dev \
+            libfreeimage-dev \
+            libfreetype6-dev \
+            libeigen3-dev \
+            libcurl4-openssl-dev \
+            libasound2-dev \
+            libsdl2-dev \
+            libsdl2-mixer-dev \
+            rapidjson-dev \
+            libvlc-dev \
+            libvlccore-dev \
+            vlc-bin
+
+      - name: Baixar EmulationStation-fcamod
+        run: |
+          git clone --recursive --depth=1 --branch 351v \
+            https://github.com/christianhaitian/EmulationStation-fcamod.git source
+
+      - name: Aplicar mosaico R36S360
+        run: |
+          python3 patch-r36s360.py source
+
+      - name: Configurar compilação
+        working-directory: source
+        run: |
+          cmake \
+            -DSCREENSCRAPER_DEV_LOGIN="devid=&devpassword=" \
+            -DGAMESDB_APIKEY="" \
+            -DSCREENSCRAPER_SOFTNAME="R36S360-V0.1" \
+            .
+
+      - name: Compilar ARM64
+        working-directory: source
+        run: |
+          make -j2
+
+      - name: Verificar binário
+        run: |
+          file source/emulationstation
+          sha256sum source/emulationstation
+
+      - name: Preparar artefato
+        run: |
+          mkdir -p resultado
+          cp source/emulationstation resultado/emulationstation.R36S360-V0.1
+
+      - name: Enviar binário compilado
+        uses: actions/upload-artifact@v4
+        with:
+          name: R36S360-FRONTEND-V0.1-ARM64
+          path: resultado/emulationstation.R36S360-V0.1
